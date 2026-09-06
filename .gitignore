@@ -1,0 +1,31 @@
+# Real recording data: never commit or upload.
+/spatial_data_pre_training/
+/Spatial data pre training/
+*.mat
+
+# Local configuration, runtime storage, and credentials.
+.env
+.env.*
+!.env.example
+/data/
+/storage/
+
+# Python and editor artifacts.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+
+# Frontend dependencies and build artifacts.
+node_modules/
+dist/
+
+# Operating system files.
+Thumbs.db
+.DS_Store
