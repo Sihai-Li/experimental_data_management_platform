@@ -29,3 +29,8 @@ dist/
 # Operating system files.
 Thumbs.db
 .DS_Store
+
+# Local P02 tooling and evidence
+/.local/
+*.egg-info/
+frontend/*.tsbuildinfo

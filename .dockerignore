@@ -1,0 +1,13 @@
+.git
+.venv
+.local
+.env
+.env.*
+spatial_data_pre_training
+Spatial data pre training
+**/*.mat
+frontend/node_modules
+frontend/dist
+**/__pycache__
+.pytest_cache
+storage

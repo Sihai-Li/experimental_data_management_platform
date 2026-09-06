@@ -1,11 +1,16 @@
 # 数据库与本地文件存储设计 v1
 
-状态：可供实现的设计草案；尚未创建数据库、执行迁移或导入数据。字段契约见 [data-contract-v1.md](data-contract-v1.md)。沿用仓库已规划的 PostgreSQL；本阶段不锁定软件版本。
+状态：P02 已实现模型和首次迁移，并在独立 PostgreSQL 中验证；尚未正式导入真实数据。字段契约见 [data-contract-v1.md](data-contract-v1.md)。沿用仓库已规划的 PostgreSQL；本阶段不锁定软件版本。
 
 ## 1. 实体关系
 
 ```mermaid
 erDiagram
+    APP_USER ||--o{ MEMBERSHIP : has
+    PROJECT ||--o{ MEMBERSHIP : grants
+    PROJECT ||--o{ NEURON_RECORDING : owns
+    PROJECT ||--o{ IMPORT_RECORD : scopes
+    APP_USER ||--o{ IMPORT_RECORD : submits
     RESEARCH_ANIMAL ||--o{ RECORDING_SESSION : has
     RECORDING_SESSION ||--o{ NEURON_RECORDING : contains
     NEURON_RECORDING ||--|{ TRIAL : has
@@ -16,6 +21,14 @@ erDiagram
 只有完成导入的记录进入业务表；ImportRecord 包括成功、失败、跳过及重复尝试。一次成功导入创建一个 SourceFile 和一个 NeuronRecording；重复尝试只留诊断，不创建新的 SourceFile。
 
 ## 2. 表与字段
+
+### app_user、project、membership
+
+- app_user：UUID 主键，issuer + subject 唯一，is_supervisor 为实验室级管理标识。
+- project：UUID 主键、非空名称、创建者外键及创建时间。
+- membership：project_id + user_id 复合主键，role 为 LAB_MEMBER / GUEST，expires_at 可空；Supervisor 权限来自 app_user，不作为项目角色。
+- neuron_recording、source_file、import_record 均有非空 project_id；复合外键保证 source_file 与 import_record、recording 与 source_file 项目一致。import_record 还有 imported_by 外键。
+- 权限执行和到期判断在 P03 完成；P02 仅建立数据结构，不将外键约束等同于 API 授权。
 
 ### research_animal
 
@@ -39,7 +52,7 @@ erDiagram
 - storage_key：text，非空唯一；内部相对路径，不使用用户提供的路径。
 - byte_size：bigint，非空且大于 0。
 - contract_version、parser_version：text，非空。
-- source_structure：jsonb，保存 MAT 变量类型、原始形状等解析描述；不放 raster 数组。
+- source_structure：jsonb 数组，保存 MAT 顶层变量类型、原始形状等解析描述；不放 raster 数组。
 - created_at：timestamptz。
 
 ### neuron_recording
@@ -123,7 +136,7 @@ DATA_ROOT 通过配置提供。staging 与 originals 位于同一文件系统，
 
 - 唯一索引：animal code、animal/session、neuron_number、sha256、source_file_id、storage_key。
 - 普通索引：neuron_recording.session_id、import_record(status, started_at)。实验分类索引等到实际查询需求再添加。
-- 三个样例从空库成功后：3 animals、3 sessions、3 recordings、3 source files、432 trials；这一数量仅适用于本次选择的三个样例。
+- 三个样例从空库成功后：2 animals、3 sessions、3 recordings、3 source files、432 trials；这一数量仅适用于本次选择的三个样例。
 - 逐项读回与源解析结果一致，包括浮点值、位置、match、完整 raster 和文件字节校验和。
 - 重复/改名上传业务表行数不变；并发同一编号最多成功一次。
 - 错误矩阵/标签/身份拒绝；模拟移动失败、数据库失败、提交前崩溃与提交结果不明确，验证恢复不会误删成功文件。
@@ -135,4 +148,4 @@ DATA_ROOT 通过配置提供。staging 与 originals 位于同一文件系统，
 3. 在空 PostgreSQL 实例运行迁移、核对约束；在受控测试库执行升级/回退验证。
 4. 文件存储适配器与导入事务，最后运行三个真实样例及故障验收。
 
-本文为设计交付，不将尚未运行的迁移或数据库验收标记为完成。
+P02 已运行首次迁移升级、回退、重建、模型差异检查及约束测试；正式导入事务及文件恢复验收属于 P04/P06/P07。
